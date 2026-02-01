@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>補給紀錄系統</title>
+<style>
+body { font-family: Arial; background:#f5f5f5; padding:20px; }
+form, table { background:#fff; padding:15px; border-radius:10px; margin-bottom:20px; }
+input, button { width:100%; padding:8px; margin-top:5px; }
+button { background:#4CAF50; color:#fff; border:none; border-radius:5px; cursor:pointer; }
+table { width:100%; border-collapse:collapse; }
+th, td { border:1px solid #ccc; padding:8px; text-align:center; }
+</style>
+</head>
+<body>
+
+<h1>補給紀錄系統</h1>
+
+<form id="recordForm">
+<input id="name" placeholder="顧客姓名" required>
+<input type="datetime-local" id="complaintTime" required>
+<input id="phone" placeholder="電話" required>
+<input id="item" placeholder="客訴品項(5字)" maxlength="5" required>
+<input id="reason" placeholder="客訴原因(10字)" maxlength="10" required>
+<button type="submit">新增紀錄</button>
+</form>
+
+<table>
+<thead>
+<tr>
+<th>姓名</th><th>時間</th><th>電話</th>
+<th>品項</th><th>原因</th>
+<th>已補給</th><th>補給時間</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  updateDoc,
+  doc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* 你的 Firebase 設定，請改成你的專案資料 */
+const firebaseConfig = {
+  apiKey: "AIzaSyAvAq3JLkR4Cg5SKauRTwRIXMNtyG0NW6A",
+  authDomain: "customer-f3cbd.firebaseapp.com",
+  projectId: "customer-f3cbd",
+  storageBucket: "customer-f3cbd.appspot.com",
+  messagingSenderId: "419769620108",
+  appId: "1:419769620108:web:2628d2b8e9bf7127930da9"
+};
+
+/* 初始化 Firebase */
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const recordsRef = collection(db, "records");
+
+const tableBody = document.getElementById("tableBody");
+const form = document.getElementById("recordForm");
+
+/* 新增資料 */
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  await addDoc(recordsRef, {
+    name: document.getElementById("name").value,
+    complaintTime: document.getElementById("complaintTime").value,
+    phone: document.getElementById("phone").value,
+    item: document.getElementById("item").value,
+    reason: document.getElementById("reason").value,
+    completed: false,
+    completeTime: ""
+  });
+  form.reset();
+});
+
+/* 即時同步 Firestore */
+onSnapshot(recordsRef, snapshot => {
+  tableBody.innerHTML = "";
+  snapshot.forEach(docSnap => {
+    const d = docSnap.data();
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${d.name}</td>
+      <td>${d.complaintTime}</td>
+      <td>${d.phone}</td>
+      <td>${d.item}</td>
+      <td>${d.reason}</td>
+      <td>
+        <input type="checkbox" ${d.completed ? "checked" : ""}
+          onchange="toggle('${docSnap.id}', this.checked)">
+      </td>
+      <td>${d.completeTime || ""}</td>
+    `;
+    tableBody.appendChild(row);
+  });
+});
+
+/* 勾選已補給 */
+window.toggle = async (id, status) => {
+  await updateDoc(doc(db, "records", id), {
+    completed: status,
+    completeTime: status ? new Date().toLocaleString() : ""
+  });
+};
+</script>
+
+</body>
+</html>
